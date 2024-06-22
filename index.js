@@ -70,6 +70,7 @@ const handleEvent = async (event) => {
 
     const user_name = await getUserName(user_id);
 
+    // เก็บข้อมูลใหม่ใน pendingData
     pendingData[user_id] = {
       user_id: user_id,
       user_name: user_name,
