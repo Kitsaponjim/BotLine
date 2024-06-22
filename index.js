@@ -13,7 +13,7 @@ const lineConfig = {
 
 const client = new line.Client(lineConfig);
 
-let pendingData = {};
+let pendingData = new Map();
 
 const handleEvent = async (event) => {
   console.log(event);
@@ -25,7 +25,7 @@ const handleEvent = async (event) => {
   const message = event.message.text;
 
   if (message.startsWith("ยืนยัน")) {
-    const data = pendingData[user_id];
+    const data = pendingData.get(user_id);
     if (data) {
       try {
         const response = await axios.get(
@@ -34,7 +34,7 @@ const handleEvent = async (event) => {
         );
         const result = response.data.result;
         if (result === "added") {
-          delete pendingData[user_id];
+          pendingData.delete(user_id);
           return client.replyMessage(event.replyToken, {
             type: "text",
             text: "บันทึกข้อมูลเรียบร้อย",
@@ -70,14 +70,13 @@ const handleEvent = async (event) => {
 
     const user_name = await getUserName(user_id);
 
-    // เก็บข้อมูลใหม่ใน pendingData
-    pendingData[user_id] = {
+    pendingData.set(user_id, {
       user_id: user_id,
       user_name: user_name,
       list: list,
       expenses: type === "จ่าย" ? amount : '',
       income: type === "รับ" ? amount : '',
-    };
+    });
 
     return client.replyMessage(event.replyToken, {
       type: "text",
