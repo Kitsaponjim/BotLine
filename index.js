@@ -13,8 +13,6 @@ const lineConfig = {
 
 const client = new line.Client(lineConfig);
 
-let pendingData = new Map();
-
 const handleEvent = async (event) => {
   console.log(event);
   if (event.type !== "message" || event.message.type !== "text") {
@@ -24,63 +22,47 @@ const handleEvent = async (event) => {
   const user_id = event.source.userId;
   const message = event.message.text;
 
-  if (message.startsWith("ยืนยัน")) {
-    const data = pendingData.get(user_id);
-    if (data) {
-      try {
-        const response = await axios.get(
-          "https://script.google.com/macros/s/AKfycbw8AYdTGm-gFBQtUgdaQa7EC1rEuioxDXoULdNEO-k4UF4XgaYC2cB_fkx48kDjLOHw/exec",
-          { params: data }
-        );
-        const result = response.data.result;
-        if (result === "added") {
-          pendingData.delete(user_id);
-          return client.replyMessage(event.replyToken, {
-            type: "text",
-            text: "บันทึกข้อมูลเรียบร้อย",
-          });
-        } else {
-          return client.replyMessage(event.replyToken, {
-            type: "text",
-            text: "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
-          });
-        }
-      } catch (error) {
-        console.error(error);
-        return client.replyMessage(event.replyToken, {
-          type: "text",
-          text: "เกิดข้อผิดพลาดในการติดต่อกับเซิร์ฟเวอร์",
-        });
-      }
+  const [list, amount, type] = message.split(" ");
+
+  if (!list || !amount || !type) {
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "รูปแบบข้อความไม่ถูกต้อง กรุณากรอกข้อมูลในรูปแบบ: ประเภท รายการ จำนวน (รายรับ/รายจ่าย)",
+    });
+  }
+
+  const user_name = await getUserName(user_id);
+
+  const data = {
+    user_id: user_id,
+    user_name: user_name,
+    list: list,
+    expenses: type === "จ่าย" ? amount : '',
+    income: type === "รับ" ? amount : '',
+  };
+
+  try {
+    const response = await axios.get(
+      "https://script.google.com/macros/s/AKfycbw8AYdTGm-gFBQtUgdaQa7EC1rEuioxDXoULdNEO-k4UF4XgaYC2cB_fkx48kDjLOHw/exec",
+      { params: data }
+    );
+    const result = response.data.result;
+    if (result === "added") {
+      return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: `บันทึกข้อมูลเรียบร้อย\nรายการ: ${list}\nจำนวน: ${amount}\nประเภท: ${type}`,
+      });
     } else {
       return client.replyMessage(event.replyToken, {
         type: "text",
-        text: "ไม่มีข้อมูลที่ต้องการยืนยัน",
+        text: "เกิดข้อผิดพลาดในการบันทึกข้อมูล",
       });
     }
-  } else {
-    const [list, amount, type] = message.split(" ");
-
-    if (!list || !amount || !type) {
-      return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: "รูปแบบข้อความไม่ถูกต้อง กรุณากรอกข้อมูลในรูปแบบ: ประเภท รายการ จำนวน (รายรับ/รายจ่าย)",
-      });
-    }
-
-    const user_name = await getUserName(user_id);
-
-    pendingData.set(user_id, {
-      user_id: user_id,
-      user_name: user_name,
-      list: list,
-      expenses: type === "จ่าย" ? amount : '',
-      income: type === "รับ" ? amount : '',
-    });
-
+  } catch (error) {
+    console.error(error);
     return client.replyMessage(event.replyToken, {
       type: "text",
-      text: `คุณต้องการบันทึกข้อมูลนี้ใช่หรือไม่?\nรายการ: ${list}\nจำนวน: ${amount}\nประเภท: ${type}\nพิมพ์ "ยืนยัน" เพื่อบันทึกข้อมูล`,
+      text: "เกิดข้อผิดพลาดในการติดต่อกับเซิร์ฟเวอร์",
     });
   }
 };
